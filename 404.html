@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Seminar on Advanced Social Statistics · 高級社會統計專題</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='4' fill='%231f3a5f'/%3E%3Cpath d='M7 23h18M9 21v-6M14 21V10M19 21v-8M24 21v-4' stroke='%23fff' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #fafaf8; color: #1b1b1b;
+    font: 17px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif; padding: 24px; }
+  main { width: min(440px, 100%); background: #fff; border: 1px solid #d9d9d6; border-radius: 4px; padding: 34px 32px 28px; }
+  .code { font: 600 12px/1 system-ui, sans-serif; letter-spacing: .12em; text-transform: uppercase; color: #5f6368; margin: 0 0 12px; }
+  h1 { font: 600 26px/1.2 "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Noto Serif TC", serif; margin: 0; }
+  .zh { font: 20px/1.3 "Iowan Old Style", Georgia, "Noto Serif TC", serif; color: #333; margin: 4px 0 22px; padding-bottom: 18px; border-bottom: 1px solid #1b1b1b; }
+  label { display: block; font-size: 15px; margin-bottom: 6px; }
+  input { width: 100%; font: inherit; padding: 10px 12px; border: 1px solid #b9b9b5; border-radius: 3px; }
+  input:focus { outline: 2px solid #1f3a5f; outline-offset: 1px; }
+  button { margin-top: 14px; width: 100%; font: inherit; padding: 10px 14px; border: 1px solid #1f3a5f; background: #1f3a5f; color: #fff; border-radius: 3px; cursor: pointer; min-height: 44px; }
+  button:disabled { opacity: .6; cursor: wait; }
+  .msg { min-height: 1.6em; margin: 12px 0 0; font-size: 15px; color: #8c2f2f; }
+  .note { font-size: 13.5px; color: #5f6368; margin: 18px 0 0; }
+</style>
+</head>
+<body>
+<main>
+  <p class="code">NCNU · Social Policy and Social Work · Ph.D.</p>
+  <h1>Seminar on Advanced Social Statistics</h1>
+  <p class="zh" lang="zh-Hant">高級社會統計專題</p>
+  <form id="f" autocomplete="off">
+    <label for="pw">Course password 課程密碼</label>
+    <input id="pw" type="password" autocomplete="current-password" autofocus>
+    <button id="go" type="submit">Enter 進入</button>
+    <p class="msg" id="msg" aria-live="polite"></p>
+  </form>
+  <p class="note">The password is given in class. This device will remember it until you choose <em>Lock</em> on the course page.<br>密碼於課堂公布。此裝置會記住密碼，直到你在課程首頁按「鎖定」。</p>
+</main>
+<script>
+(function () {
+  var CFG = {"salt": "MyL9RvibKJsraYE+otPUFA==", "iter": 250000, "check": "R7++xHeQd0Nkmz9HQCVMhT6OxaMjCP40KaTDbQFHZqRys9Ysgd+O5hw=", "version": "e6b33a37fa8c41f0", "depth": 1};
+  var form = document.getElementById('f'), pw = document.getElementById('pw'), msg = document.getElementById('msg'), go = document.getElementById('go');
+  var base = location.pathname.replace(/[^/]*$/, '');
+  // 404.html is served for any missing path, so find the site folder from where sw.js lives
+  if (CFG.depth) base = location.pathname.split('/').slice(0, 2).join('/') + '/';
+  function say(t) { msg.textContent = t; }
+  function b64(s) { return Uint8Array.from(atob(s), function (c) { return c.charCodeAt(0); }); }
+  function norm(s) { return s.toLowerCase().replace(/[^a-z0-9]/g, ''); }
+
+  if (!window.crypto || !crypto.subtle || !('serviceWorker' in navigator) || !window.indexedDB) {
+    say('This browser cannot open the site (try Chrome, Edge or Safari, not a private window). 此瀏覽器無法開啟本網站，請改用 Chrome、Edge 或 Safari（非無痕模式）。');
+    go.disabled = true; return;
+  }
+  // already unlocked on this device but the worker is not running yet: start it and continue
+  navigator.serviceWorker.getRegistration(base).then(function (reg) {
+    if (reg && reg.active && !navigator.serviceWorker.controller) location.reload();
+  });
+
+  function idbPut(v) {
+    return new Promise(function (ok, no) {
+      var r = indexedDB.open('quant-site', 1);
+      r.onupgradeneeded = function () { r.result.createObjectStore('kv'); };
+      r.onerror = function () { no(r.error); };
+      r.onsuccess = function () {
+        var t = r.result.transaction('kv', 'readwrite'); t.objectStore('kv').put(v, 'keys');
+        t.oncomplete = function () { ok(); }; t.onerror = function () { no(t.error); };
+      };
+    });
+  }
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var p = norm(pw.value);
+    if (!p) { say('Please type the password. 請輸入密碼。'); return; }
+    go.disabled = true; say('Checking… 確認中…'); msg.style.color = '#5f6368';
+    var aes, mac;
+    crypto.subtle.importKey('raw', new TextEncoder().encode(p), 'PBKDF2', false, ['deriveBits']).then(function (k) {
+      return crypto.subtle.deriveBits({ name: 'PBKDF2', salt: b64(CFG.salt), iterations: CFG.iter, hash: 'SHA-256' }, k, 512);
+    }).then(function (bits) {
+      return Promise.all([
+        crypto.subtle.importKey('raw', bits.slice(0, 32), { name: 'AES-GCM' }, false, ['decrypt']),
+        crypto.subtle.importKey('raw', bits.slice(32), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
+      ]);
+    }).then(function (ks) {
+      aes = ks[0]; mac = ks[1];
+      var c = b64(CFG.check);
+      return crypto.subtle.decrypt({ name: 'AES-GCM', iv: c.slice(0, 12) }, aes, c.slice(12));
+    }).then(function () {
+      return idbPut({ aes: aes, mac: mac, version: CFG.version });
+    }, function () { throw 'wrong'; }).then(function () {
+      say('Opening… 開啟中…');
+      return navigator.serviceWorker.register(base + 'sw.js', { scope: base });
+    }).then(function (reg) {
+      if (reg.active) reg.active.postMessage('reload-keys');
+      return navigator.serviceWorker.ready;
+    }).then(function (reg) {
+      reg.active.postMessage('reload-keys');
+      if (navigator.serviceWorker.controller) return;
+      return new Promise(function (ok) { navigator.serviceWorker.addEventListener('controllerchange', ok); setTimeout(ok, 3000); });
+    }).then(function () {
+      var next = new URLSearchParams(location.search).get('next');
+      var target = next ? base + next.replace(/^\/+/, '') : location.pathname + location.hash;
+      location.replace(target);
+    }).catch(function (err) {
+      go.disabled = false; msg.style.color = '#8c2f2f';
+      say(err === 'wrong' ? 'That password is not right. 密碼不正確。' : 'Could not open the site: ' + err + '. 無法開啟網站。');
+      pw.select();
+    });
+  });
+})();
+</script>
+</body>
+</html>
