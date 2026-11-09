@@ -7,7 +7,7 @@
 var SCOPE = self.registration.scope;            // e.g. https://ncnusw.github.io/quant/
 var BASE = new URL(SCOPE).pathname;              // e.g. /quant/
 var DB = 'quant-site', STORE = 'kv', SLOT = 'keys';
-var VERSION = 'e6b33a37fa8c41f0';                     // changes when the password or salt changes
+var VERSION = '1f30eec86ad99421';                     // changes when the password or salt changes
 var keys = null;
 
 var TYPES = {
